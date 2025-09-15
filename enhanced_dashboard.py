@@ -13,7 +13,6 @@ from plotly.subplots import make_subplots
 import plotly.figure_factory as ff
 from datetime import datetime, timedelta
 import numpy as np
-from scipy import stats
 import warnings
 import os
 import time
