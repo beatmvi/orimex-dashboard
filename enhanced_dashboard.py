@@ -114,7 +114,34 @@ st.markdown("""
 def load_data():
     """Загрузка данных из базы данных"""
     try:
+        # Проверяем существование базы данных
+        if not os.path.exists('orimex_orders.db'):
+            st.warning("⚠️ База данных не найдена. Создаем базу данных из исходного файла...")
+            
+            # Пытаемся создать базу данных из исходного CSV файла
+            csv_file = "Заказы Оримэкс - TDSheet.csv"
+            if os.path.exists(csv_file):
+                from csv_to_db import parse_csv_to_database
+                success = parse_csv_to_database(csv_file, 'orimex_orders.db')
+                if not success:
+                    st.error("❌ Не удалось создать базу данных из исходного файла.")
+                    return pd.DataFrame()
+            else:
+                st.error("❌ Исходный CSV файл не найден. Пожалуйста, загрузите данные через интерфейс.")
+                return pd.DataFrame()
+        
         conn = sqlite3.connect('orimex_orders.db')
+        
+        # Проверяем существование таблиц
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        tables = cursor.fetchall()
+        table_names = [table[0] for table in tables]
+        
+        if 'orders' not in table_names or 'contractors' not in table_names or 'products' not in table_names:
+            st.error("❌ База данных не содержит необходимых таблиц. Пожалуйста, пересоздайте базу данных.")
+            conn.close()
+            return pd.DataFrame()
         
         query = '''
         SELECT 
@@ -136,6 +163,12 @@ def load_data():
         '''
         
         df = pd.read_sql_query(query, conn)
+        
+        if df.empty:
+            st.error("❌ База данных пуста. Убедитесь, что данные были загружены.")
+            conn.close()
+            return pd.DataFrame()
+        
         df['order_date'] = pd.to_datetime(df['order_date'])
         df['month'] = df['order_date'].dt.to_period('M')
         df['week'] = df['order_date'].dt.to_period('W')
