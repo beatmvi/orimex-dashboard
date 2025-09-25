@@ -1610,7 +1610,6 @@ def main():
         csv_data = filtered_df.to_csv(index=False, encoding='utf-8-sig')
 
         # Создаем имя файла с текущей датой
-        from datetime import datetime
         current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"dashboard_export_{current_time}.csv"
 
