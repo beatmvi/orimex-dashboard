@@ -1603,6 +1603,27 @@ def main():
     # Кнопка обновления данных
     if st.sidebar.button("🔄 Обновить данные", help="Перезагрузить данные из базы"):
         st.rerun()
+
+    # Кнопка экспорта данных
+    if st.sidebar.button("📥 Экспорт в CSV", help="Экспортировать отфильтрованные данные в CSV"):
+        # Создаем CSV данные
+        csv_data = filtered_df.to_csv(index=False, encoding='utf-8-sig')
+
+        # Создаем имя файла с текущей датой
+        from datetime import datetime
+        current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"dashboard_export_{current_time}.csv"
+
+        # Добавляем BOM для корректного отображения кириллицы в Excel
+        csv_with_bom = '\ufeff' + csv_data
+
+        st.sidebar.download_button(
+            label="💾 Скачать CSV",
+            data=csv_with_bom,
+            file_name=filename,
+            mime='text/csv',
+            help="Скачать отфильтрованные данные в формате CSV"
+        )
     
     # Расширенная боковая панель с фильтрами
     st.sidebar.markdown("## 🔧 Детальные фильтры")
@@ -1660,41 +1681,65 @@ def main():
     # Фильтры по сущностям
     st.sidebar.markdown('<div class="filter-section">', unsafe_allow_html=True)
     st.sidebar.markdown("### 🎯 Основные фильтры")
-    
+
+    # Функция для создания фильтра с кнопкой "Выбрать все"
+    def create_filter_with_select_all(label, options_list, help_text):
+        st.markdown(f"**{label}**")
+        st.caption(help_text)
+
+        # Кнопка "Выбрать все"
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            if st.button(f"✅ Выбрать все", key=f"select_all_{label.split()[1]}", help=f"Выбрать все {label.lower()}"):
+                st.session_state[f"selected_{label.split()[1].lower()}"] = options_list.copy()
+
+        with col2:
+            if st.button(f"❌ Сбросить", key=f"reset_{label.split()[1]}", help=f"Сбросить выбор {label.lower()}"):
+                st.session_state[f"selected_{label.split()[1].lower()}"] = []
+
+        # Мультиселект
+        default_value = st.session_state.get(f"selected_{label.split()[1].lower()}", [])
+        selected = st.multiselect(
+            f"Выберите {label.lower()}",
+            options_list,
+            default=default_value,
+            key=f"multiselect_{label.split()[1].lower()}"
+        )
+
+        # Обновляем session_state
+        st.session_state[f"selected_{label.split()[1].lower()}"] = selected
+        return selected
+
     # Регионы
     regions = sorted(df['region'].unique().tolist())
-    selected_regions = st.sidebar.multiselect(
-        "🗺️ Регионы", 
-        regions, 
-        default=[],  # По умолчанию пустой = все регионы
-        help="Оставьте пустым для анализа всех регионов"
+    selected_regions = create_filter_with_select_all(
+        "🗺️ Регионы",
+        regions,
+        "Выберите регионы для анализа (оставьте пустым для всех регионов)"
     )
-    
+
     # Категории
-    categories = sorted(df['category'].unique().tolist()) 
-    selected_categories = st.sidebar.multiselect(
+    categories = sorted(df['category'].unique().tolist())
+    selected_categories = create_filter_with_select_all(
         "📦 Категории товаров",
         categories,
-        default=[],  # По умолчанию пустой = все категории
-        help="Оставьте пустым для анализа всех категорий"
+        "Выберите категории товаров для анализа (оставьте пустым для всех категорий)"
     )
-    
+
     # Контрагенты
     contractors = sorted(df['head_contractor'].unique().tolist())
-    selected_contractors = st.sidebar.multiselect(
+    selected_contractors = create_filter_with_select_all(
         "🏢 Головные контрагенты",
         contractors,
-        default=[],  # По умолчанию пустой = все контрагенты
-        help="Оставьте пустым для анализа всех контрагентов"
+        "Выберите контрагентов для анализа (оставьте пустым для всех контрагентов)"
     )
-    
-    # Менеджеры  
+
+    # Менеджеры
     managers = sorted(df['manager'].unique().tolist())
-    selected_managers = st.sidebar.multiselect(
+    selected_managers = create_filter_with_select_all(
         "👨‍💼 Менеджеры",
         managers,
-        default=[],  # По умолчанию пустой = все менеджеры
-        help="Оставьте пустым для анализа всех менеджеров"
+        "Выберите менеджеров для анализа (оставьте пустым для всех менеджеров)"
     )
     st.sidebar.markdown('</div>', unsafe_allow_html=True)
     
@@ -1751,11 +1796,67 @@ def main():
         filtered_df = filtered_df[filtered_df['quantity'] >= min_quantity]
     
     # Отладочная информация
-    st.sidebar.markdown("### 🔍 Отладочная информация")
+    st.sidebar.markdown("### 🔍 Статистика фильтрации")
     st.sidebar.write(f"📊 Исходных записей: {len(df):,}")
     st.sidebar.write(f"📊 После фильтрации: {len(filtered_df):,}")
     st.sidebar.write(f"💰 Исходная сумма: {df['amount'].sum():,.0f} ₽")
     st.sidebar.write(f"💰 Отфильтрованная сумма: {filtered_df['amount'].sum():,.0f} ₽")
+
+    # Статистика покрытия
+    if len(df) > 0:
+        coverage_revenue = filtered_df['amount'].sum() / df['amount'].sum() * 100
+        coverage_records = len(filtered_df) / len(df) * 100
+
+        st.sidebar.metric("🎯 Покрытие выручки", f"{coverage_revenue:.1f}%")
+        st.sidebar.metric("🎯 Покрытие записей", f"{coverage_records:.1f}%")
+
+        if coverage_revenue < 100:
+            st.sidebar.info(f"📉 Отфильтровано: {100 - coverage_revenue:.1f}% выручки")
+        else:
+            st.sidebar.success("✅ Все данные включены")
+
+    # Статистика по выбранным элементам
+    st.sidebar.markdown("### 🎯 Активные фильтры")
+
+    if selected_regions:
+        st.sidebar.write(f"🗺️ Регионы: {len(selected_regions)}/{len(regions)} выбрано")
+        if len(selected_regions) <= 5:
+            st.sidebar.write(f"   _{', '.join(selected_regions)}_")
+    else:
+        st.sidebar.write("🗺️ Регионы: все выбраны")
+
+    if selected_categories:
+        st.sidebar.write(f"📦 Категории: {len(selected_categories)}/{len(categories)} выбрано")
+        if len(selected_categories) <= 5:
+            st.sidebar.write(f"   _{', '.join(selected_categories)}_")
+    else:
+        st.sidebar.write("📦 Категории: все выбраны")
+
+    if selected_contractors:
+        st.sidebar.write(f"🏢 Контрагенты: {len(selected_contractors)}/{len(contractors)} выбрано")
+        if len(selected_contractors) <= 5:
+            st.sidebar.write(f"   _{', '.join(selected_contractors[:5])}_")
+            if len(selected_contractors) > 5:
+                st.sidebar.write(f"   _и еще {len(selected_contractors) - 5}_")
+    else:
+        st.sidebar.write("🏢 Контрагенты: все выбраны")
+
+    if selected_managers:
+        st.sidebar.write(f"👨‍💼 Менеджеры: {len(selected_managers)}/{len(managers)} выбрано")
+        if len(selected_managers) <= 5:
+            st.sidebar.write(f"   _{', '.join(selected_managers)}_")
+    else:
+        st.sidebar.write("👨‍💼 Менеджеры: все выбраны")
+
+    if min_amount > 0:
+        st.sidebar.write(f"💰 Мин. сумма: {min_amount:,} ₽")
+    else:
+        st.sidebar.write("💰 Мин. сумма: без ограничений")
+
+    if min_quantity > 0:
+        st.sidebar.write(f"📦 Мин. количество: {min_quantity:,} шт.")
+    else:
+        st.sidebar.write("📦 Мин. количество: без ограничений")
     
     # Расширенные KPI
     kpis = create_advanced_kpi_dashboard(filtered_df)
@@ -2048,13 +2149,28 @@ def main():
             
             # Селектор для просмотра динамики других контрагентов
             st.subheader("🔍 Выберите контрагентов для анализа динамики")
-            
+
+            # Кнопки для выбора контрагентов динамики
+            dyn_col1, dyn_col2 = st.columns([1, 1])
+            with dyn_col1:
+                if st.button("✅ Выбрать топ-10", key="select_top10_contractors", help="Выбрать топ-10 контрагентов по выручке"):
+                    st.session_state["selected_contractors_dynamics"] = all_contractors[:10] if len(all_contractors) >= 10 else all_contractors
+
+            with dyn_col2:
+                if st.button("❌ Сбросить", key="reset_contractors_dynamics", help="Сбросить выбор контрагентов"):
+                    st.session_state["selected_contractors_dynamics"] = []
+
+            default_dynamics = st.session_state.get("selected_contractors_dynamics", all_contractors[:5] if len(all_contractors) > 5 else all_contractors[:3])
             selected_contractors_dynamics = st.multiselect(
                 "Выберите контрагентов для отображения динамики:",
                 all_contractors,
-                default=all_contractors[:5] if len(all_contractors) > 5 else all_contractors[:3],
+                default=default_dynamics,
+                key="multiselect_contractors_dynamics",
                 help="Выберите до 10 контрагентов для сравнения динамики"
             )
+
+            # Обновляем session_state
+            st.session_state["selected_contractors_dynamics"] = selected_contractors_dynamics
             
             if selected_contractors_dynamics:
                 fig_custom_dynamics = go.Figure()
@@ -2224,11 +2340,33 @@ def main():
             
             # Селектор товара
             products_list = sorted(filtered_df['product_name'].unique())
+
+            # Кнопки для быстрого выбора товаров
+            prod_col1, prod_col2 = st.columns([1, 1])
+            with prod_col1:
+                if st.button("🏆 Топ-товар", key="select_top_product", help="Выбрать самый прибыльный товар"):
+                    # Находим товар с максимальной выручкой
+                    top_product = product_data.loc[product_data['Общая выручка'].idxmax(), 'product_name']
+                    st.session_state["selected_product"] = top_product
+
+            with prod_col2:
+                if st.button("🔍 Поиск...", key="search_product", help="Открыть поиск по товарам"):
+                    search_term = st.text_input("Поиск товара:", key="product_search")
+                    if search_term:
+                        filtered_products = [p for p in products_list if search_term.lower() in p.lower()]
+                        if filtered_products:
+                            products_list = filtered_products
+
+            default_product = st.session_state.get("selected_product", products_list[0] if products_list else None)
             selected_product = st.selectbox(
                 "Выберите товар для детального анализа:",
                 products_list,
+                index=products_list.index(default_product) if default_product in products_list else 0,
                 help="Выберите товар чтобы увидеть его детальную динамику"
             )
+
+            # Обновляем session_state
+            st.session_state["selected_product"] = selected_product
             
             if selected_product:
                 fig_product_deep, product_contractors, product_regions = create_product_deep_dive(filtered_df, selected_product)
@@ -2294,24 +2432,69 @@ def main():
             with col_select1:
                 # Селектор контрагента
                 contractors_list = sorted(filtered_df['head_contractor'].unique())
+
+                # Кнопки для быстрого выбора контрагента
+                contr_col1, contr_col2 = st.columns([1, 1])
+                with contr_col1:
+                    if st.button("🏆 Топ-контрагент", key="select_top_contractor", help="Выбрать контрагента с максимальной выручкой"):
+                        top_contractor = filtered_df.groupby('head_contractor')['amount'].sum().idxmax()
+                        st.session_state["selected_contractor_pair"] = top_contractor
+
+                with contr_col2:
+                    if st.button("🔍 Поиск...", key="search_contractor", help="Открыть поиск по контрагентам"):
+                        search_term = st.text_input("Поиск контрагента:", key="contractor_search")
+                        if search_term:
+                            filtered_contractors = [c for c in contractors_list if search_term.lower() in c.lower()]
+                            if filtered_contractors:
+                                contractors_list = filtered_contractors
+
+                default_contractor = st.session_state.get("selected_contractor_pair", contractors_list[0] if contractors_list else None)
                 selected_contractor_pair = st.selectbox(
                     "🏢 Выберите контрагента:",
                     contractors_list,
+                    index=contractors_list.index(default_contractor) if default_contractor in contractors_list else 0,
                     help="Выберите контрагента для анализа"
                 )
-            
+
+                # Обновляем session_state
+                st.session_state["selected_contractor_pair"] = selected_contractor_pair
+
             with col_select2:
                 # Селектор товара (фильтруем по выбранному контрагенту)
                 if selected_contractor_pair:
                     contractor_products = filtered_df[
                         filtered_df['head_contractor'] == selected_contractor_pair
                     ]['product_name'].unique()
-                    
+
+                    # Кнопка для выбора топ-товара контрагента
+                    prod_pair_col1, prod_pair_col2 = st.columns([1, 1])
+                    with prod_pair_col1:
+                        if st.button("🏆 Топ-товар", key="select_top_product_pair", help="Выбрать самый прибыльный товар контрагента"):
+                            if len(contractor_products) > 0:
+                                top_product = filtered_df[
+                                    (filtered_df['head_contractor'] == selected_contractor_pair) &
+                                    (filtered_df['product_name'].isin(contractor_products))
+                                ].groupby('product_name')['amount'].sum().idxmax()
+                                st.session_state["selected_product_pair"] = top_product
+
+                    with prod_pair_col2:
+                        if st.button("🔍 Поиск...", key="search_product_pair", help="Открыть поиск по товарам"):
+                            search_term = st.text_input("Поиск товара:", key="product_pair_search")
+                            if search_term:
+                                filtered_products = [p for p in contractor_products if search_term.lower() in p.lower()]
+                                if filtered_products:
+                                    contractor_products = filtered_products
+
+                    default_product_pair = st.session_state.get("selected_product_pair", sorted(contractor_products)[0] if len(contractor_products) > 0 else None)
                     selected_product_pair = st.selectbox(
                         "📦 Выберите товар:",
                         sorted(contractor_products),
+                        index=sorted(contractor_products).index(default_product_pair) if default_product_pair in contractor_products else 0,
                         help="Выберите товар этого контрагента"
                     )
+
+                    # Обновляем session_state
+                    st.session_state["selected_product_pair"] = selected_product_pair
                 else:
                     selected_product_pair = None
             
