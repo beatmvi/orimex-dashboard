@@ -1531,7 +1531,11 @@ def upload_and_update_data():
                         st.sidebar.write(f"📅 Период: {min_date} - {max_date}")
                         
                         st.sidebar.success("✅ Данные успешно добавлены к существующей БД!")
-                        
+
+                        # Очищаем кеш загруженных данных, чтобы сразу отобразились новые данные
+                        load_data.clear()
+                        create_sales_dynamics_analysis.clear()
+
                         # Автоматически перезагружаем дашборд через 2 секунды
                         st.sidebar.info("🔄 Перезагрузка дашборда через 2 секунды...")
                         time.sleep(2)
@@ -1948,8 +1952,7 @@ def main():
                     
                     st.dataframe(
                         display_data[['Период', 'Выручка', 'Средний чек', 'Количество заказов', 'Количество товаров']],
-                        width='stretch',
-                        use_container_width=True
+                        width='stretch'
                     )
                     
                     # Экспорт данных
@@ -2548,14 +2551,14 @@ def main():
                             st.markdown("---")
                         col1, col2 = st.columns(2)
                         with col1:
-                            st.plotly_chart(chart, width='stretch', key=f"product_chart_{chart_index}")
+                            st.plotly_chart(chart, width='stretch', config={'displayModeBar': False})
                             chart_index += 1
                         if i + 1 < len(product_comparison_charts):
                             with col2:
-                                st.plotly_chart(product_comparison_charts[i + 1], width='stretch', key=f"product_chart_{chart_index}")
+                                st.plotly_chart(product_comparison_charts[i + 1], width='stretch', config={'displayModeBar': False})
                                 chart_index += 1
                     elif i == len(product_comparison_charts) - 1:
-                        st.plotly_chart(chart, width='stretch', key=f"product_chart_{chart_index}")
+                        st.plotly_chart(chart, width='stretch', config={'displayModeBar': False})
 
         else:
             st.info("📅 Выберите оба периода для проведения сравнения")
