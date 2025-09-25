@@ -1948,8 +1948,7 @@ def main():
                     
                     st.dataframe(
                         display_data[['Период', 'Выручка', 'Средний чек', 'Количество заказов', 'Количество товаров']],
-                        width='stretch',
-                        use_container_width=True
+                        width='stretch'
                     )
                     
                     # Экспорт данных
