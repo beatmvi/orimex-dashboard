@@ -1622,9 +1622,9 @@ def main():
             
             col1, col2 = st.columns(2)
             with col1:
-                st.plotly_chart(fig_manager_perf, use_container_width=True)
+                st.plotly_chart(fig_manager_perf, width='stretch')
             with col2:
-                st.plotly_chart(fig_manager_dyn, use_container_width=True)
+                st.plotly_chart(fig_manager_dyn, width='stretch')
             
             # Детальная таблица менеджеров
             st.subheader("📋 Рейтинг менеджеров")
@@ -1655,7 +1655,7 @@ def main():
             if 'Стабильность' in display_data.columns:
                 display_data['Стабильность'] = display_data['Стабильность'].apply(lambda x: f"{x:.2f}" if pd.notna(x) else "0.00")
             
-            st.dataframe(display_data, use_container_width=True)
+            st.dataframe(display_data, width='stretch')
             
             # Экспорт данных менеджеров
             csv_managers = manager_data.to_csv(index=False, encoding='utf-8')
@@ -1677,9 +1677,9 @@ def main():
             
             col1, col2 = st.columns(2)
             with col1:
-                st.plotly_chart(fig_contr_segments, use_container_width=True)
+                st.plotly_chart(fig_contr_segments, width='stretch')
             with col2:
-                st.plotly_chart(fig_contr_dyn, use_container_width=True)
+                st.plotly_chart(fig_contr_dyn, width='stretch')
             
             # Селектор для просмотра динамики других контрагентов
             st.subheader("🔍 Выберите контрагентов для анализа динамики")
@@ -1714,7 +1714,7 @@ def main():
                     height=500
                 )
                 
-                st.plotly_chart(fig_custom_dynamics, use_container_width=True)
+                st.plotly_chart(fig_custom_dynamics, width='stretch')
             
             # Анализ лояльности
             st.subheader("💎 Анализ лояльности контрагентов")
@@ -1727,7 +1727,7 @@ def main():
                     names=loyalty_stats.index,
                     title="🔄 Распределение по лояльности"
                 )
-                st.plotly_chart(fig_loyalty, use_container_width=True)
+                st.plotly_chart(fig_loyalty, width='stretch')
             
             with col4:
                 st.write("**📊 Статистика лояльности:**")
@@ -1756,7 +1756,7 @@ def main():
                     'Средний заказ': '{:,.0f} ₽',
                     'Интенсивность': '{:.2f}'
                 }),
-                use_container_width=True
+                width='stretch'
             )
         
         st.markdown('</div>', unsafe_allow_html=True)
@@ -1769,13 +1769,13 @@ def main():
             fig_product_matrix, fig_product_dynamics, product_data, fig_category_dynamics, category_charts = create_product_detailed_analysis(filtered_df)
             
             # Сначала показываем динамику по категориям
-            st.plotly_chart(fig_category_dynamics, use_container_width=True)
+            st.plotly_chart(fig_category_dynamics, width='stretch')
             
             col1, col2 = st.columns(2)
             with col1:
-                st.plotly_chart(fig_product_matrix, use_container_width=True)
+                st.plotly_chart(fig_product_matrix, width='stretch')
             with col2:
-                st.plotly_chart(fig_product_dynamics, use_container_width=True)
+                st.plotly_chart(fig_product_dynamics, width='stretch')
             
             # Отдельные графики по каждой категории
             st.subheader("📊 Детальная динамика товаров по категориям")
@@ -1788,7 +1788,7 @@ def main():
             )
             
             if selected_category_detail and selected_category_detail in category_charts:
-                st.plotly_chart(category_charts[selected_category_detail], use_container_width=True)
+                st.plotly_chart(category_charts[selected_category_detail], width='stretch')
                 
                 # Статистика по категории
                 category_info = filtered_df[filtered_df['category'] == selected_category_detail]
@@ -1820,11 +1820,11 @@ def main():
                     
                     with col_cat_left:
                         if i < len(categories_list):
-                            st.plotly_chart(category_charts[categories_list[i]], use_container_width=True)
+                            st.plotly_chart(category_charts[categories_list[i]], width='stretch')
                     
                     with col_cat_right:
                         if i + 1 < len(categories_list):
-                            st.plotly_chart(category_charts[categories_list[i + 1]], use_container_width=True)
+                            st.plotly_chart(category_charts[categories_list[i + 1]], width='stretch')
             
             # ABC анализ товаров
             st.subheader("🎯 ABC классификация товаров")
@@ -1838,7 +1838,7 @@ def main():
                     title="📊 Распределение товаров по ABC",
                     color_discrete_map={'A': '#2E8B57', 'B': '#FFD700', 'C': '#DC143C'}
                 )
-                st.plotly_chart(fig_abc, use_container_width=True)
+                st.plotly_chart(fig_abc, width='stretch')
             
             with col4:
                 st.write("**📊 ABC статистика:**")
@@ -1869,7 +1869,7 @@ def main():
                 fig_product_deep, product_contractors, product_regions = create_product_deep_dive(filtered_df, selected_product)
                 
                 if fig_product_deep is not None:
-                    st.plotly_chart(fig_product_deep, use_container_width=True)
+                    st.plotly_chart(fig_product_deep, width='stretch')
                     
                     # Статистика по товару
                     col_prod1, col_prod2, col_prod3 = st.columns(3)
@@ -1890,7 +1890,7 @@ def main():
                     
                     # Топ контрагенты для товара
                     st.write("**🏢 Топ-10 контрагентов для этого товара:**")
-                    st.dataframe(product_contractors.head(10), use_container_width=True)
+                    st.dataframe(product_contractors.head(10), width='stretch')
                 else:
                     st.warning("⚠️ Нет данных для выбранного товара в текущем фильтре")
             
@@ -1901,7 +1901,7 @@ def main():
                  'Количество заказов', 'Покупателей', 'Скорость продаж', 'Географическое покрытие']
             ]
             
-            st.dataframe(top_products_display, use_container_width=True)
+            st.dataframe(top_products_display, width='stretch')
         
         st.markdown('</div>', unsafe_allow_html=True)
     
@@ -1914,12 +1914,12 @@ def main():
             
             col1, col2 = st.columns(2)
             with col1:
-                st.plotly_chart(fig_contr_spec, use_container_width=True)
+                st.plotly_chart(fig_contr_spec, width='stretch')
             with col2:
-                st.plotly_chart(fig_diversity, use_container_width=True)
+                st.plotly_chart(fig_diversity, width='stretch')
             
             # Динамика пар
-            st.plotly_chart(fig_pairs_dyn, use_container_width=True)
+            st.plotly_chart(fig_pairs_dyn, width='stretch')
             
             # Детальный анализ конкретной пары
             st.subheader("🔍 Детальный анализ пары контрагент-товар")
@@ -1957,7 +1957,7 @@ def main():
                 )
                 
                 if fig_pair_deep is not None:
-                    st.plotly_chart(fig_pair_deep, use_container_width=True)
+                    st.plotly_chart(fig_pair_deep, width='stretch')
                     
                     # Статистика пары
                     st.subheader(f"📊 Статистика пары: {selected_contractor_pair} × {selected_product_pair}")
@@ -2004,7 +2004,7 @@ def main():
                     'amount': '{:,.0f} ₽',
                     'quantity': '{:,.0f} шт.'
                 }),
-                use_container_width=True,
+                width='stretch',
                 column_config={
                     "head_contractor": st.column_config.TextColumn("🏢 Контрагент"),
                     "product_name": st.column_config.TextColumn("📦 Товар"),
@@ -2131,7 +2131,7 @@ def main():
             )
             
             # Отображаем результаты
-            st.plotly_chart(fig_main_comparison, use_container_width=True)
+            st.plotly_chart(fig_main_comparison, width='stretch')
             
             # Таблица с изменениями
             st.subheader("📊 Детальное сравнение метрик")
@@ -2153,15 +2153,15 @@ def main():
                     'Период 1': '{:,.0f}',
                     'Период 2': '{:,.0f}'
                 }),
-                use_container_width=True
+                width='stretch'
             )
             
             # Графики по категориям, менеджерам и контрагентам
             col_comp1, col_comp2 = st.columns(2)
             
             with col_comp1:
-                st.plotly_chart(fig_cat_comparison, use_container_width=True)
-                st.plotly_chart(fig_mgr_comparison, use_container_width=True)
+                st.plotly_chart(fig_cat_comparison, width='stretch')
+                st.plotly_chart(fig_mgr_comparison, width='stretch')
 
             with col_comp2:
                 # Сводка изменений по категориям
@@ -2175,7 +2175,7 @@ def main():
 
             # График контрагентов на всю ширину
             st.subheader("🏢 Детальное сравнение контрагентов")
-            st.plotly_chart(fig_contr_comparison, use_container_width=True)
+            st.plotly_chart(fig_contr_comparison, width='stretch')
 
             # Графики сравнения товаров по категориям
             if product_comparison_charts:
@@ -2189,14 +2189,14 @@ def main():
                             st.markdown("---")
                         col1, col2 = st.columns(2)
                         with col1:
-                            st.plotly_chart(chart, use_container_width=True, key=f"product_chart_{chart_index}")
+                            st.plotly_chart(chart, width='stretch', key=f"product_chart_{chart_index}")
                             chart_index += 1
                         if i + 1 < len(product_comparison_charts):
                             with col2:
-                                st.plotly_chart(product_comparison_charts[i + 1], use_container_width=True, key=f"product_chart_{chart_index}")
+                                st.plotly_chart(product_comparison_charts[i + 1], width='stretch', key=f"product_chart_{chart_index}")
                                 chart_index += 1
                     elif i == len(product_comparison_charts) - 1:
-                        st.plotly_chart(chart, use_container_width=True, key=f"product_chart_{chart_index}")
+                        st.plotly_chart(chart, width='stretch', key=f"product_chart_{chart_index}")
 
         else:
             st.info("📅 Выберите оба периода для проведения сравнения")
@@ -2209,7 +2209,7 @@ def main():
         
         if not filtered_df.empty:
             fig_heatmap, interaction_data = create_manager_contractor_matrix(filtered_df)
-            st.plotly_chart(fig_heatmap, use_container_width=True)
+            st.plotly_chart(fig_heatmap, width='stretch')
             
             # Топ взаимодействия
             st.subheader("⭐ Топ-15 пар менеджер-контрагент")
@@ -2222,7 +2222,7 @@ def main():
                     'amount': '{:,.0f} ₽',
                     'Эффективность': '{:,.0f} ₽'
                 }),
-                use_container_width=True,
+                width='stretch',
                 column_config={
                     "manager": st.column_config.TextColumn("👨‍💼 Менеджер"),
                     "head_contractor": st.column_config.TextColumn("🏢 Контрагент"),
@@ -2259,9 +2259,9 @@ def main():
             
             col1, col2 = st.columns(2)
             with col1:
-                st.plotly_chart(fig_quarterly, use_container_width=True)
+                st.plotly_chart(fig_quarterly, width='stretch')
             with col2:
-                st.plotly_chart(fig_seasonal, use_container_width=True)
+                st.plotly_chart(fig_seasonal, width='stretch')
             
             # Трендовый анализ
             st.subheader("📊 Трендовый анализ")
@@ -2334,7 +2334,7 @@ def main():
                     height=500
                 )
                 
-                st.plotly_chart(fig_entity_trend, use_container_width=True)
+                st.plotly_chart(fig_entity_trend, width='stretch')
                 
                 # Статистика по выбранному объекту
                 col_stat1, col_stat2, col_stat3 = st.columns(3)
@@ -2359,7 +2359,7 @@ def main():
         
         if not filtered_df.empty:
             fig_specialization, competitive_customers_count, specialization_data = create_cross_analysis(filtered_df)
-            st.plotly_chart(fig_specialization, use_container_width=True)
+            st.plotly_chart(fig_specialization, width='stretch')
             
             col1, col2 = st.columns(2)
             
@@ -2428,7 +2428,7 @@ def main():
                     'Общая сумма': '{:,.0f} ₽',
                     'Средний заказ': '{:,.0f} ₽'
                 }),
-                use_container_width=True
+                width='stretch'
             )
             
             st.info(f"📊 Показано {len(display_report)} пар из {len(summary_report)} общих")

@@ -1063,7 +1063,7 @@ def main():
         st.subheader("📊 Ультра-анализ временных рядов")
         if not filtered_df.empty:
             fig_ultra_time = create_ultra_time_series(filtered_df)
-            st.plotly_chart(fig_ultra_time, use_container_width=True)
+            st.plotly_chart(fig_ultra_time, width='stretch')
         st.markdown('</div>', unsafe_allow_html=True)
     
     with tab2:
@@ -1074,9 +1074,9 @@ def main():
             
             col1, col2 = st.columns(2)
             with col1:
-                st.plotly_chart(fig_journey, use_container_width=True)
+                st.plotly_chart(fig_journey, width='stretch')
             with col2:
-                st.plotly_chart(fig_funnel, use_container_width=True)
+                st.plotly_chart(fig_funnel, width='stretch')
             
             # Статистика по сегментам CLV
             st.subheader("💎 Сегменты клиентов по ценности")
@@ -1084,7 +1084,7 @@ def main():
                 'total_amount': ['sum', 'mean', 'count'],
                 'total_orders': 'mean'
             }).round(0)
-            st.dataframe(clv_stats, use_container_width=True)
+            st.dataframe(clv_stats, width='stretch')
         st.markdown('</div>', unsafe_allow_html=True)
     
     with tab3:
@@ -1095,16 +1095,16 @@ def main():
             
             col1, col2 = st.columns(2)
             with col1:
-                st.plotly_chart(fig_matrix, use_container_width=True)
+                st.plotly_chart(fig_matrix, width='stretch')
             with col2:
-                st.plotly_chart(fig_network, use_container_width=True)
+                st.plotly_chart(fig_network, width='stretch')
             
             # Топ товары по скорости оборота
             st.subheader("⚡ Топ товары по скорости оборота")
             top_velocity = product_data.sort_values('velocity', ascending=False).head(10)
             st.dataframe(
                 top_velocity[['product', 'velocity', 'total_revenue', 'unique_customers']],
-                use_container_width=True
+                width='stretch'
             )
         st.markdown('</div>', unsafe_allow_html=True)
     
@@ -1113,7 +1113,7 @@ def main():
         st.subheader("🏆 Турнир менеджеров")
         if not filtered_df.empty:
             fig_radar, manager_data = create_manager_leaderboard(filtered_df)
-            st.plotly_chart(fig_radar, use_container_width=True)
+            st.plotly_chart(fig_radar, width='stretch')
             
             # Турнирная таблица
             st.subheader("🥇 Лидерборд менеджеров")
@@ -1125,7 +1125,7 @@ def main():
                     'avg_order': '{:,.0f} ₽',
                     'overall_rating': '{:.2f}'
                 }),
-                use_container_width=True,
+                width='stretch',
                 column_config={
                     "medal": st.column_config.TextColumn("🏅", width="small"),
                     "overall_rating": st.column_config.ProgressColumn(
@@ -1145,9 +1145,9 @@ def main():
             
             col1, col2 = st.columns(2)
             with col1:
-                st.plotly_chart(fig_regions, use_container_width=True)
+                st.plotly_chart(fig_regions, width='stretch')
             with col2:
-                st.plotly_chart(fig_map, use_container_width=True)
+                st.plotly_chart(fig_map, width='stretch')
             
             # Классификация регионов
             st.subheader("🏷️ Классификация регионов")
@@ -1173,9 +1173,9 @@ def main():
             
             col1, col2 = st.columns(2)
             with col1:
-                st.plotly_chart(fig_forecast, use_container_width=True)
+                st.plotly_chart(fig_forecast, width='stretch')
             with col2:
-                st.plotly_chart(fig_importance, use_container_width=True)
+                st.plotly_chart(fig_importance, width='stretch')
             
             # Прогнозы
             st.markdown(f"""
@@ -1191,9 +1191,9 @@ def main():
             
             col3, col4 = st.columns(2)
             with col3:
-                st.plotly_chart(fig_benchmark, use_container_width=True)
+                st.plotly_chart(fig_benchmark, width='stretch')
             with col4:
-                st.plotly_chart(fig_regional_rank, use_container_width=True)
+                st.plotly_chart(fig_regional_rank, width='stretch')
         st.markdown('</div>', unsafe_allow_html=True)
     
     st.markdown('</div>', unsafe_allow_html=True)
