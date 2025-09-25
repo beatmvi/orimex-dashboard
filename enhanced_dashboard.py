@@ -191,7 +191,10 @@ def create_sales_dynamics_analysis(df, period_type='День', start_date=None, 
     
     # Фильтрация по датам если указаны
     if start_date and end_date:
-        df_filtered = df[(df['order_date'] >= start_date) & (df['order_date'] <= end_date)].copy()
+        # Преобразуем date объекты в datetime для корректного сравнения
+        start_datetime = pd.to_datetime(start_date)
+        end_datetime = pd.to_datetime(end_date) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
+        df_filtered = df[(df['order_date'] >= start_datetime) & (df['order_date'] <= end_datetime)].copy()
     else:
         df_filtered = df.copy()
     
@@ -1723,7 +1726,7 @@ def main():
     
     # Фильтр по датам
     filtered_df = filtered_df[
-        (filtered_df['order_date'].dt.date >= start_date) & 
+        (filtered_df['order_date'].dt.date >= start_date) &
         (filtered_df['order_date'].dt.date <= end_date)
     ]
     
