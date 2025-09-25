@@ -763,12 +763,12 @@ def main():
         st.subheader("📈 Расширенный анализ временных рядов")
         if not filtered_df.empty:
             fig_time = create_advanced_time_series(filtered_df)
-            st.plotly_chart(fig_time, use_container_width=True)
+            st.plotly_chart(fig_time, width='stretch')
             
             # Корреляционная карта
             if len(filtered_df['category'].unique()) > 1:
                 fig_corr = create_correlation_heatmap(filtered_df)
-                st.plotly_chart(fig_corr, use_container_width=True)
+                st.plotly_chart(fig_corr, width='stretch')
     
     with tab2:
         st.subheader("🎯 ABC анализ товаров и клиентов")
@@ -804,18 +804,18 @@ def main():
         if not filtered_df.empty:
             fig_treemap, fig_bubble, region_stats = create_geographic_analysis(filtered_df)
             
-            st.plotly_chart(fig_treemap, use_container_width=True)
-            st.plotly_chart(fig_bubble, use_container_width=True)
+            st.plotly_chart(fig_treemap, width='stretch')
+            st.plotly_chart(fig_bubble, width='stretch')
             
             # Воронка по регионам
             funnel_fig = create_funnel_analysis(filtered_df)
-            st.plotly_chart(funnel_fig, use_container_width=True)
+            st.plotly_chart(funnel_fig, width='stretch')
     
     with tab4:
         st.subheader("📊 Анализ товарного портфеля")
         if not filtered_df.empty:
             fig_bcg, bcg_data = create_product_portfolio_analysis(filtered_df)
-            st.plotly_chart(fig_bcg, use_container_width=True)
+            st.plotly_chart(fig_bcg, width='stretch')
             
             st.write("**📋 Интерпретация BCG матрицы:**")
             col1, col2 = st.columns(2)
@@ -828,15 +828,15 @@ def main():
             
             # Анализ цен
             fig_violin, fig_outliers, outliers_count = create_price_analysis(filtered_df)
-            st.plotly_chart(fig_violin, use_container_width=True)
-            st.plotly_chart(fig_outliers, use_container_width=True)
+            st.plotly_chart(fig_violin, width='stretch')
+            st.plotly_chart(fig_outliers, width='stretch')
             st.info(f"🔍 Найдено {outliers_count} аномальных заказов")
     
     with tab5:
         st.subheader("👥 Когортный анализ клиентов")
         if not filtered_df.empty and len(filtered_df['buyer'].unique()) > 10:
             fig_cohort = create_cohort_analysis(filtered_df)
-            st.plotly_chart(fig_cohort, use_container_width=True)
+            st.plotly_chart(fig_cohort, width='stretch')
             
             st.info("💡 **Интерпретация:** Темные области показывают высокий процент удержания клиентов в соответствующие месяцы после первой покупки")
         else:
@@ -846,7 +846,7 @@ def main():
         st.subheader("💼 Анализ эффективности менеджеров")
         if not filtered_df.empty:
             fig_managers, manager_stats = create_manager_performance(filtered_df)
-            st.plotly_chart(fig_managers, use_container_width=True)
+            st.plotly_chart(fig_managers, width='stretch')
             
             st.subheader("📊 Рейтинг менеджеров")
             st.dataframe(
@@ -855,14 +855,14 @@ def main():
                     'Средний заказ': '{:,.0f} ₽',
                     'Эффективность': '{:.2f}'
                 }),
-                use_container_width=True
+                width='stretch'
             )
     
     with tab7:
         st.subheader("🔮 Прогнозирование и тренды")
         if not filtered_df.empty:
             fig_forecast, forecast_sum = create_sales_forecast(filtered_df)
-            st.plotly_chart(fig_forecast, use_container_width=True)
+            st.plotly_chart(fig_forecast, width='stretch')
             
             col1, col2 = st.columns(2)
             with col1:
@@ -950,7 +950,7 @@ def main():
         # Отображение таблицы
         st.dataframe(
             display_df.head(1000),  # Ограничиваем для производительности
-            use_container_width=True,
+            width='stretch',
             column_config={
                 "amount": st.column_config.NumberColumn(
                     "Сумма",
