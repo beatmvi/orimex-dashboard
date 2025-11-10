@@ -182,6 +182,212 @@ def load_data():
         st.error(f"Ошибка загрузки данных: {e}")
         return pd.DataFrame()
 
+@st.cache_data(ttl=300)
+def create_sales_dynamics_analysis(df, period_type='День', start_date=None, end_date=None):
+    """Анализ динамики продаж по выбранному периоду"""
+    
+    if df.empty:
+        return None, None, None, None
+    
+    # Фильтрация по датам если указаны
+    if start_date and end_date:
+        # Преобразуем date объекты в datetime для корректного сравнения
+        start_datetime = pd.to_datetime(start_date)
+        end_datetime = pd.to_datetime(end_date) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
+        df_filtered = df[(df['order_date'] >= start_datetime) & (df['order_date'] <= end_datetime)].copy()
+    else:
+        df_filtered = df.copy()
+    
+    # Преобразование даты
+    df_filtered['order_date'] = pd.to_datetime(df_filtered['order_date'])
+    
+    # Определение группировки по периоду
+    if period_type == 'День':
+        df_filtered['period'] = df_filtered['order_date'].dt.date
+        date_format = '%d.%m.%Y'
+    elif period_type == 'Неделя':
+        df_filtered['period'] = df_filtered['order_date'].dt.to_period('W').dt.start_time.dt.date
+        date_format = '%d.%m.%Y'
+    elif period_type == 'Месяц':
+        df_filtered['period'] = df_filtered['order_date'].dt.to_period('M').dt.start_time.dt.date
+        date_format = '%m.%Y'
+    elif period_type == 'Квартал':
+        df_filtered['period'] = df_filtered['order_date'].dt.to_period('Q').dt.start_time.dt.date
+        date_format = 'Q%q %Y'
+    else:  # Год
+        df_filtered['period'] = df_filtered['order_date'].dt.to_period('Y').dt.start_time.dt.date
+        date_format = '%Y'
+    
+    # Агрегация данных по периоду
+    dynamics_data = df_filtered.groupby('period').agg({
+        'amount': ['sum', 'mean', 'count'],
+        'quantity': 'sum'
+    }).round(2)
+    
+    # Выравнивание колонок
+    dynamics_data.columns = ['Выручка', 'Средний_чек', 'Количество_заказов', 'Количество_товаров']
+    dynamics_data = dynamics_data.reset_index()
+    
+    # Сортировка по дате
+    dynamics_data = dynamics_data.sort_values('period')
+    
+    # Расчет трендов
+    dynamics_data['Выручка_тренд'] = dynamics_data['Выручка'].rolling(window=min(7, len(dynamics_data)), center=True).mean()
+    dynamics_data['Заказы_тренд'] = dynamics_data['Количество_заказов'].rolling(window=min(7, len(dynamics_data)), center=True).mean()
+    
+    # Создание графиков
+    # 1. График динамики выручки
+    fig_revenue = go.Figure()
+    
+    fig_revenue.add_trace(go.Scatter(
+        x=dynamics_data['period'],
+        y=dynamics_data['Выручка'],
+        mode='lines+markers',
+        name='Выручка',
+        line=dict(color='#2E86AB', width=3),
+        marker=dict(size=8, color='#2E86AB'),
+        hovertemplate='<b>%{x}</b><br>Выручка: %{y:,.0f} ₽<extra></extra>'
+    ))
+    
+    fig_revenue.add_trace(go.Scatter(
+        x=dynamics_data['period'],
+        y=dynamics_data['Выручка_тренд'],
+        mode='lines',
+        name='Тренд',
+        line=dict(color='#F18F01', width=2, dash='dash'),
+        hovertemplate='<b>%{x}</b><br>Тренд: %{y:,.0f} ₽<extra></extra>'
+    ))
+    
+    fig_revenue.update_layout(
+        title=f'📈 Динамика выручки по {period_type.lower()}м',
+        xaxis_title='Период',
+        yaxis_title='Выручка (₽)',
+        hovermode='x unified',
+        template='plotly_white',
+        height=400,
+        showlegend=True,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+    
+    # 2. График количества заказов
+    fig_orders = go.Figure()
+    
+    fig_orders.add_trace(go.Bar(
+        x=dynamics_data['period'],
+        y=dynamics_data['Количество_заказов'],
+        name='Количество заказов',
+        marker_color='#A23B72',
+        hovertemplate='<b>%{x}</b><br>Заказов: %{y}<extra></extra>'
+    ))
+    
+    fig_orders.add_trace(go.Scatter(
+        x=dynamics_data['period'],
+        y=dynamics_data['Заказы_тренд'],
+        mode='lines',
+        name='Тренд заказов',
+        line=dict(color='#F18F01', width=2, dash='dash'),
+        yaxis='y2',
+        hovertemplate='<b>%{x}</b><br>Тренд заказов: %{y:.1f}<extra></extra>'
+    ))
+    
+    fig_orders.update_layout(
+        title=f'📊 Количество заказов по {period_type.lower()}м',
+        xaxis_title='Период',
+        yaxis_title='Количество заказов',
+        yaxis2=dict(title='Тренд заказов', overlaying='y', side='right'),
+        hovermode='x unified',
+        template='plotly_white',
+        height=400,
+        showlegend=True,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+    
+    # 3. График среднего чека
+    fig_avg_check = go.Figure()
+    
+    fig_avg_check.add_trace(go.Scatter(
+        x=dynamics_data['period'],
+        y=dynamics_data['Средний_чек'],
+        mode='lines+markers',
+        name='Средний чек',
+        line=dict(color='#51cf66', width=3),
+        marker=dict(size=8, color='#51cf66'),
+        hovertemplate='<b>%{x}</b><br>Средний чек: %{y:,.0f} ₽<extra></extra>'
+    ))
+    
+    fig_avg_check.update_layout(
+        title=f'💰 Средний чек по {period_type.lower()}м',
+        xaxis_title='Период',
+        yaxis_title='Средний чек (₽)',
+        hovermode='x unified',
+        template='plotly_white',
+        height=400,
+        showlegend=False
+    )
+    
+    # 4. Комбинированный график (выручка + заказы)
+    fig_combined = make_subplots(
+        rows=2, cols=1,
+        subplot_titles=(f'Выручка по {period_type.lower()}м', f'Количество заказов по {period_type.lower()}м'),
+        vertical_spacing=0.1,
+        specs=[[{"secondary_y": False}], [{"secondary_y": False}]]
+    )
+    
+    fig_combined.add_trace(
+        go.Scatter(
+            x=dynamics_data['period'],
+            y=dynamics_data['Выручка'],
+            mode='lines+markers',
+            name='Выручка',
+            line=dict(color='#2E86AB', width=3),
+            marker=dict(size=6, color='#2E86AB')
+        ),
+        row=1, col=1
+    )
+    
+    fig_combined.add_trace(
+        go.Bar(
+            x=dynamics_data['period'],
+            y=dynamics_data['Количество_заказов'],
+            name='Заказы',
+            marker_color='#A23B72',
+            opacity=0.7
+        ),
+        row=2, col=1
+    )
+    
+    fig_combined.update_layout(
+        title=f'📊 Комбинированная динамика продаж по {period_type.lower()}м',
+        height=600,
+        showlegend=True,
+        template='plotly_white',
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+    
+    # Расчет статистики
+    total_revenue = dynamics_data['Выручка'].sum()
+    total_orders = dynamics_data['Количество_заказов'].sum()
+    avg_check = dynamics_data['Средний_чек'].mean()
+    
+    # Расчет роста/падения
+    if len(dynamics_data) > 1:
+        revenue_growth = ((dynamics_data['Выручка'].iloc[-1] - dynamics_data['Выручка'].iloc[-2]) / dynamics_data['Выручка'].iloc[-2]) * 100
+        orders_growth = ((dynamics_data['Количество_заказов'].iloc[-1] - dynamics_data['Количество_заказов'].iloc[-2]) / dynamics_data['Количество_заказов'].iloc[-2]) * 100
+    else:
+        revenue_growth = 0
+        orders_growth = 0
+    
+    stats = {
+        'total_revenue': total_revenue,
+        'total_orders': total_orders,
+        'avg_check': avg_check,
+        'revenue_growth': revenue_growth,
+        'orders_growth': orders_growth,
+        'period_count': len(dynamics_data)
+    }
+    
+    return fig_revenue, fig_orders, fig_avg_check, fig_combined, dynamics_data, stats
+
 def create_manager_detailed_analysis(df):
     """Детальный анализ менеджеров"""
     
@@ -1328,7 +1534,11 @@ def upload_and_update_data():
                         st.sidebar.write(f"📅 Период: {min_date} - {max_date}")
                         
                         st.sidebar.success("✅ Данные успешно добавлены к существующей БД!")
-                        
+
+                        # Очищаем кеш загруженных данных, чтобы сразу отобразились новые данные
+                        load_data.clear()
+                        create_sales_dynamics_analysis.clear()
+
                         # Автоматически перезагружаем дашборд через 2 секунды
                         st.sidebar.info("🔄 Перезагрузка дашборда через 2 секунды...")
                         time.sleep(2)
@@ -1393,6 +1603,26 @@ def main():
     # Кнопка обновления данных
     if st.sidebar.button("🔄 Обновить данные", help="Перезагрузить данные из базы"):
         st.rerun()
+
+    # Кнопка экспорта данных
+    if st.sidebar.button("📥 Экспорт в CSV", help="Экспортировать отфильтрованные данные в CSV"):
+        # Создаем CSV данные
+        csv_data = filtered_df.to_csv(index=False, encoding='utf-8-sig')
+
+        # Создаем имя файла с текущей датой
+        current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"dashboard_export_{current_time}.csv"
+
+        # Добавляем BOM для корректного отображения кириллицы в Excel
+        csv_with_bom = '\ufeff' + csv_data
+
+        st.sidebar.download_button(
+            label="💾 Скачать CSV",
+            data=csv_with_bom,
+            file_name=filename,
+            mime='text/csv',
+            help="Скачать отфильтрованные данные в формате CSV"
+        )
     
     # Расширенная боковая панель с фильтрами
     st.sidebar.markdown("## 🔧 Детальные фильтры")
@@ -1450,41 +1680,65 @@ def main():
     # Фильтры по сущностям
     st.sidebar.markdown('<div class="filter-section">', unsafe_allow_html=True)
     st.sidebar.markdown("### 🎯 Основные фильтры")
-    
+
+    # Функция для создания фильтра с кнопкой "Выбрать все"
+    def create_filter_with_select_all(label, options_list, help_text):
+        st.markdown(f"**{label}**")
+        st.caption(help_text)
+
+        # Кнопка "Выбрать все"
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            if st.button(f"✅ Выбрать все", key=f"select_all_{label.split()[1]}", help=f"Выбрать все {label.lower()}"):
+                st.session_state[f"selected_{label.split()[1].lower()}"] = options_list.copy()
+
+        with col2:
+            if st.button(f"❌ Сбросить", key=f"reset_{label.split()[1]}", help=f"Сбросить выбор {label.lower()}"):
+                st.session_state[f"selected_{label.split()[1].lower()}"] = []
+
+        # Мультиселект
+        default_value = st.session_state.get(f"selected_{label.split()[1].lower()}", [])
+        selected = st.multiselect(
+            f"Выберите {label.lower()}",
+            options_list,
+            default=default_value,
+            key=f"multiselect_{label.split()[1].lower()}"
+        )
+
+        # Обновляем session_state
+        st.session_state[f"selected_{label.split()[1].lower()}"] = selected
+        return selected
+
     # Регионы
     regions = sorted(df['region'].unique().tolist())
-    selected_regions = st.sidebar.multiselect(
-        "🗺️ Регионы", 
-        regions, 
-        default=[],  # По умолчанию пустой = все регионы
-        help="Оставьте пустым для анализа всех регионов"
+    selected_regions = create_filter_with_select_all(
+        "🗺️ Регионы",
+        regions,
+        "Выберите регионы для анализа (оставьте пустым для всех регионов)"
     )
-    
+
     # Категории
-    categories = sorted(df['category'].unique().tolist()) 
-    selected_categories = st.sidebar.multiselect(
+    categories = sorted(df['category'].unique().tolist())
+    selected_categories = create_filter_with_select_all(
         "📦 Категории товаров",
         categories,
-        default=[],  # По умолчанию пустой = все категории
-        help="Оставьте пустым для анализа всех категорий"
+        "Выберите категории товаров для анализа (оставьте пустым для всех категорий)"
     )
-    
+
     # Контрагенты
     contractors = sorted(df['head_contractor'].unique().tolist())
-    selected_contractors = st.sidebar.multiselect(
+    selected_contractors = create_filter_with_select_all(
         "🏢 Головные контрагенты",
         contractors,
-        default=[],  # По умолчанию пустой = все контрагенты
-        help="Оставьте пустым для анализа всех контрагентов"
+        "Выберите контрагентов для анализа (оставьте пустым для всех контрагентов)"
     )
-    
-    # Менеджеры  
+
+    # Менеджеры
     managers = sorted(df['manager'].unique().tolist())
-    selected_managers = st.sidebar.multiselect(
+    selected_managers = create_filter_with_select_all(
         "👨‍💼 Менеджеры",
         managers,
-        default=[],  # По умолчанию пустой = все менеджеры
-        help="Оставьте пустым для анализа всех менеджеров"
+        "Выберите менеджеров для анализа (оставьте пустым для всех менеджеров)"
     )
     st.sidebar.markdown('</div>', unsafe_allow_html=True)
     
@@ -1516,7 +1770,7 @@ def main():
     
     # Фильтр по датам
     filtered_df = filtered_df[
-        (filtered_df['order_date'].dt.date >= start_date) & 
+        (filtered_df['order_date'].dt.date >= start_date) &
         (filtered_df['order_date'].dt.date <= end_date)
     ]
     
@@ -1541,11 +1795,67 @@ def main():
         filtered_df = filtered_df[filtered_df['quantity'] >= min_quantity]
     
     # Отладочная информация
-    st.sidebar.markdown("### 🔍 Отладочная информация")
+    st.sidebar.markdown("### 🔍 Статистика фильтрации")
     st.sidebar.write(f"📊 Исходных записей: {len(df):,}")
     st.sidebar.write(f"📊 После фильтрации: {len(filtered_df):,}")
     st.sidebar.write(f"💰 Исходная сумма: {df['amount'].sum():,.0f} ₽")
     st.sidebar.write(f"💰 Отфильтрованная сумма: {filtered_df['amount'].sum():,.0f} ₽")
+
+    # Статистика покрытия
+    if len(df) > 0:
+        coverage_revenue = filtered_df['amount'].sum() / df['amount'].sum() * 100
+        coverage_records = len(filtered_df) / len(df) * 100
+
+        st.sidebar.metric("🎯 Покрытие выручки", f"{coverage_revenue:.1f}%")
+        st.sidebar.metric("🎯 Покрытие записей", f"{coverage_records:.1f}%")
+
+        if coverage_revenue < 100:
+            st.sidebar.info(f"📉 Отфильтровано: {100 - coverage_revenue:.1f}% выручки")
+        else:
+            st.sidebar.success("✅ Все данные включены")
+
+    # Статистика по выбранным элементам
+    st.sidebar.markdown("### 🎯 Активные фильтры")
+
+    if selected_regions:
+        st.sidebar.write(f"🗺️ Регионы: {len(selected_regions)}/{len(regions)} выбрано")
+        if len(selected_regions) <= 5:
+            st.sidebar.write(f"   _{', '.join(selected_regions)}_")
+    else:
+        st.sidebar.write("🗺️ Регионы: все выбраны")
+
+    if selected_categories:
+        st.sidebar.write(f"📦 Категории: {len(selected_categories)}/{len(categories)} выбрано")
+        if len(selected_categories) <= 5:
+            st.sidebar.write(f"   _{', '.join(selected_categories)}_")
+    else:
+        st.sidebar.write("📦 Категории: все выбраны")
+
+    if selected_contractors:
+        st.sidebar.write(f"🏢 Контрагенты: {len(selected_contractors)}/{len(contractors)} выбрано")
+        if len(selected_contractors) <= 5:
+            st.sidebar.write(f"   _{', '.join(selected_contractors[:5])}_")
+            if len(selected_contractors) > 5:
+                st.sidebar.write(f"   _и еще {len(selected_contractors) - 5}_")
+    else:
+        st.sidebar.write("🏢 Контрагенты: все выбраны")
+
+    if selected_managers:
+        st.sidebar.write(f"👨‍💼 Менеджеры: {len(selected_managers)}/{len(managers)} выбрано")
+        if len(selected_managers) <= 5:
+            st.sidebar.write(f"   _{', '.join(selected_managers)}_")
+    else:
+        st.sidebar.write("👨‍💼 Менеджеры: все выбраны")
+
+    if min_amount > 0:
+        st.sidebar.write(f"💰 Мин. сумма: {min_amount:,} ₽")
+    else:
+        st.sidebar.write("💰 Мин. сумма: без ограничений")
+
+    if min_quantity > 0:
+        st.sidebar.write(f"📦 Мин. количество: {min_quantity:,} шт.")
+    else:
+        st.sidebar.write("📦 Мин. количество: без ограничений")
     
     # Расширенные KPI
     kpis = create_advanced_kpi_dashboard(filtered_df)
@@ -1601,7 +1911,8 @@ def main():
         """, unsafe_allow_html=True)
     
     # Основные вкладки
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
+    tab0, tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
+        "📈 Динамика продаж",
         "👨‍💼 Детальный анализ менеджеров",
         "🏢 Глубокий анализ контрагентов", 
         "📦 Анализ товаров",
@@ -1613,6 +1924,160 @@ def main():
         "📊 Сводные отчеты"
     ])
     
+    # Новая вкладка: Динамика продаж
+    with tab0:
+        st.markdown('<div class="enhanced-card">', unsafe_allow_html=True)
+        st.subheader("📈 Динамика продаж по выбранному периоду")
+        
+        if not filtered_df.empty:
+            # Селекторы для настройки анализа
+            col1, col2 = st.columns([1, 2])
+            
+            with col1:
+                # Выбор типа периода
+                period_type = st.selectbox(
+                    "📅 Тип периода",
+                    ["День", "Неделя", "Месяц", "Квартал", "Год"],
+                    index=2,  # По умолчанию "Месяц"
+                    help="Выберите период для группировки данных"
+                )
+                
+                # Дополнительные фильтры по датам
+                use_custom_dates = st.checkbox("📅 Использовать пользовательские даты", value=False)
+                
+                if use_custom_dates:
+                    min_date = filtered_df['order_date'].min().date()
+                    max_date = filtered_df['order_date'].max().date()
+                    
+                    custom_start = st.date_input(
+                        "Начальная дата",
+                        value=min_date,
+                        min_value=min_date,
+                        max_value=max_date
+                    )
+                    
+                    custom_end = st.date_input(
+                        "Конечная дата", 
+                        value=max_date,
+                        min_value=custom_start,
+                        max_value=max_date
+                    )
+                else:
+                    custom_start = None
+                    custom_end = None
+            
+            with col2:
+                st.info(f"""
+                📊 **Анализ динамики продаж**
+                
+                Выбранный период: **{period_type.lower()}**
+                
+                Будет показана динамика:
+                - 📈 Выручки по периодам
+                - 📊 Количества заказов
+                - 💰 Среднего чека
+                - 📉 Трендов и изменений
+                """)
+            
+            # Выполнение анализа
+            try:
+                fig_revenue, fig_orders, fig_avg_check, fig_combined, dynamics_data, stats = create_sales_dynamics_analysis(
+                    filtered_df, period_type, custom_start, custom_end
+                )
+                
+                if fig_revenue is not None:
+                    # Отображение ключевых метрик
+                    st.markdown("### 📊 Ключевые показатели")
+                    
+                    col1, col2, col3, col4 = st.columns(4)
+                    
+                    with col1:
+                        st.metric(
+                            label="💰 Общая выручка",
+                            value=f"{stats['total_revenue']:,.0f} ₽",
+                            delta=f"{stats['revenue_growth']:+.1f}%" if stats['revenue_growth'] != 0 else None
+                        )
+                    
+                    with col2:
+                        st.metric(
+                            label="📦 Всего заказов",
+                            value=f"{stats['total_orders']:,.0f}",
+                            delta=f"{stats['orders_growth']:+.1f}%" if stats['orders_growth'] != 0 else None
+                        )
+                    
+                    with col3:
+                        st.metric(
+                            label="💳 Средний чек",
+                            value=f"{stats['avg_check']:,.0f} ₽"
+                        )
+                    
+                    with col4:
+                        st.metric(
+                            label="📅 Периодов",
+                            value=f"{stats['period_count']}"
+                        )
+                    
+                    # Графики
+                    st.markdown("### 📈 Графики динамики")
+                    
+                    # Выбор типа отображения
+                    display_type = st.radio(
+                        "Выберите тип отображения:",
+                        ["Комбинированный график", "Отдельные графики"],
+                        horizontal=True
+                    )
+                    
+                    if display_type == "Комбинированный график":
+                        st.plotly_chart(fig_combined, width='stretch')
+                    else:
+                        # Отдельные графики в двух колонках
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            st.plotly_chart(fig_revenue, width='stretch')
+                            st.plotly_chart(fig_avg_check, width='stretch')
+                        
+                        with col2:
+                            st.plotly_chart(fig_orders, width='stretch')
+                    
+                    # Таблица с детальными данными
+                    st.markdown("### 📋 Детальные данные по периодам")
+                    
+                    # Форматирование данных для отображения
+                    display_data = dynamics_data.copy()
+                    display_data['Выручка'] = display_data['Выручка'].apply(lambda x: f"{x:,.0f} ₽")
+                    display_data['Средний_чек'] = display_data['Средний_чек'].apply(lambda x: f"{x:,.0f} ₽")
+                    display_data['Количество_заказов'] = display_data['Количество_заказов'].apply(lambda x: f"{x:,.0f}")
+                    display_data['Количество_товаров'] = display_data['Количество_товаров'].apply(lambda x: f"{x:,.0f}")
+                    
+                    # Переименование колонок
+                    display_data.columns = ['Период', 'Выручка', 'Средний чек', 'Количество заказов', 'Количество товаров', 'Выручка (тренд)', 'Заказы (тренд)']
+                    
+                    st.dataframe(
+                        display_data[['Период', 'Выручка', 'Средний чек', 'Количество заказов', 'Количество товаров']],
+                        width='stretch'
+                    )
+                    
+                    # Экспорт данных
+                    csv_data = dynamics_data.to_csv(index=False, encoding='utf-8')
+                    st.download_button(
+                        "📥 Скачать данные динамики продаж",
+                        data=csv_data,
+                        file_name=f"sales_dynamics_{period_type.lower()}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                        mime="text/csv"
+                    )
+                    
+                else:
+                    st.warning("⚠️ Не удалось создать графики динамики продаж. Проверьте данные.")
+                    
+            except Exception as e:
+                st.error(f"❌ Ошибка при создании анализа динамики продаж: {e}")
+                
+        else:
+            st.warning("⚠️ Нет данных для анализа динамики продаж. Убедитесь, что данные загружены и фильтры настроены правильно.")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+    
     with tab1:
         st.markdown('<div class="enhanced-card">', unsafe_allow_html=True)
         st.subheader("👨‍💼 Детальный анализ менеджеров")
@@ -1622,9 +2087,9 @@ def main():
             
             col1, col2 = st.columns(2)
             with col1:
-                st.plotly_chart(fig_manager_perf, use_container_width=True)
+                st.plotly_chart(fig_manager_perf, width='stretch')
             with col2:
-                st.plotly_chart(fig_manager_dyn, use_container_width=True)
+                st.plotly_chart(fig_manager_dyn, width='stretch')
             
             # Детальная таблица менеджеров
             st.subheader("📋 Рейтинг менеджеров")
@@ -1655,7 +2120,7 @@ def main():
             if 'Стабильность' in display_data.columns:
                 display_data['Стабильность'] = display_data['Стабильность'].apply(lambda x: f"{x:.2f}" if pd.notna(x) else "0.00")
             
-            st.dataframe(display_data, use_container_width=True)
+            st.dataframe(display_data, width='stretch')
             
             # Экспорт данных менеджеров
             csv_managers = manager_data.to_csv(index=False, encoding='utf-8')
@@ -1677,34 +2142,46 @@ def main():
             
             col1, col2 = st.columns(2)
             with col1:
-                st.plotly_chart(fig_contr_segments, use_container_width=True)
+                st.plotly_chart(fig_contr_segments, width='stretch')
             with col2:
-                st.plotly_chart(fig_contr_dyn, use_container_width=True)
+                st.plotly_chart(fig_contr_dyn, width='stretch')
             
             # Селектор для просмотра динамики других контрагентов
             st.subheader("🔍 Выберите контрагентов для анализа динамики")
-            
-            # Безопасно формируем список опций и значений по умолчанию,
-            # чтобы исключить None/NaN и значения, отсутствующие в опциях
+
+            # Безопасно формируем список опций (исключаем пустые/NaN и приводим к строкам при необходимости)
             contractors_options = [c for c in all_contractors if isinstance(c, str) and c.strip() != ""]
-            # Подстрахуемся на случай нестроковых типов
             if not contractors_options and all_contractors:
                 contractors_options = [str(c) for c in all_contractors if pd.notna(c)]
-            
-            if len(contractors_options) >= 5:
-                default_contractors_options = contractors_options[:5]
-            else:
-                default_contractors_options = contractors_options[:min(3, len(contractors_options))]
-            
-            # Гарантируем, что default — подмножество options
-            default_contractors_options = [c for c in default_contractors_options if c in contractors_options]
+
+            # Кнопки для выбора контрагентов динамики (работаем с безопасными опциями)
+            dyn_col1, dyn_col2 = st.columns([1, 1])
+            with dyn_col1:
+                if st.button("✅ Выбрать топ-10", key="select_top10_contractors", help="Выбрать топ-10 контрагентов по выручке"):
+                    st.session_state["selected_contractors_dynamics"] = contractors_options[:10] if len(contractors_options) >= 10 else contractors_options
+
+            with dyn_col2:
+                if st.button("❌ Сбросить", key="reset_contractors_dynamics", help="Сбросить выбор контрагентов"):
+                    st.session_state["selected_contractors_dynamics"] = []
+
+            # Вычисляем безопасный default и приводим его к подмножеству текущих опций
+            default_seed = contractors_options[:5] if len(contractors_options) > 5 else contractors_options[:min(3, len(contractors_options))]
+            default_dynamics = st.session_state.get("selected_contractors_dynamics", default_seed)
+            if default_dynamics is None:
+                default_dynamics = []
+            # Гарантируем, что default — подмножество опций
+            default_dynamics = [c for c in default_dynamics if c in contractors_options]
 
             selected_contractors_dynamics = st.multiselect(
                 "Выберите контрагентов для отображения динамики:",
                 contractors_options,
-                default=default_contractors_options,
+                default=default_dynamics,
+                key="multiselect_contractors_dynamics",
                 help="Выберите до 10 контрагентов для сравнения динамики"
             )
+
+            # Обновляем session_state
+            st.session_state["selected_contractors_dynamics"] = selected_contractors_dynamics
             
             if selected_contractors_dynamics:
                 fig_custom_dynamics = go.Figure()
@@ -1729,7 +2206,7 @@ def main():
                     height=500
                 )
                 
-                st.plotly_chart(fig_custom_dynamics, use_container_width=True)
+                st.plotly_chart(fig_custom_dynamics, width='stretch')
             
             # Анализ лояльности
             st.subheader("💎 Анализ лояльности контрагентов")
@@ -1742,7 +2219,7 @@ def main():
                     names=loyalty_stats.index,
                     title="🔄 Распределение по лояльности"
                 )
-                st.plotly_chart(fig_loyalty, use_container_width=True)
+                st.plotly_chart(fig_loyalty, width='stretch')
             
             with col4:
                 st.write("**📊 Статистика лояльности:**")
@@ -1771,7 +2248,7 @@ def main():
                     'Средний заказ': '{:,.0f} ₽',
                     'Интенсивность': '{:.2f}'
                 }),
-                use_container_width=True
+                width='stretch'
             )
         
         st.markdown('</div>', unsafe_allow_html=True)
@@ -1784,13 +2261,13 @@ def main():
             fig_product_matrix, fig_product_dynamics, product_data, fig_category_dynamics, category_charts = create_product_detailed_analysis(filtered_df)
             
             # Сначала показываем динамику по категориям
-            st.plotly_chart(fig_category_dynamics, use_container_width=True)
+            st.plotly_chart(fig_category_dynamics, width='stretch')
             
             col1, col2 = st.columns(2)
             with col1:
-                st.plotly_chart(fig_product_matrix, use_container_width=True)
+                st.plotly_chart(fig_product_matrix, width='stretch')
             with col2:
-                st.plotly_chart(fig_product_dynamics, use_container_width=True)
+                st.plotly_chart(fig_product_dynamics, width='stretch')
             
             # Отдельные графики по каждой категории
             st.subheader("📊 Детальная динамика товаров по категориям")
@@ -1803,7 +2280,7 @@ def main():
             )
             
             if selected_category_detail and selected_category_detail in category_charts:
-                st.plotly_chart(category_charts[selected_category_detail], use_container_width=True)
+                st.plotly_chart(category_charts[selected_category_detail], width='stretch')
                 
                 # Статистика по категории
                 category_info = filtered_df[filtered_df['category'] == selected_category_detail]
@@ -1835,11 +2312,11 @@ def main():
                     
                     with col_cat_left:
                         if i < len(categories_list):
-                            st.plotly_chart(category_charts[categories_list[i]], use_container_width=True)
+                            st.plotly_chart(category_charts[categories_list[i]], width='stretch')
                     
                     with col_cat_right:
                         if i + 1 < len(categories_list):
-                            st.plotly_chart(category_charts[categories_list[i + 1]], use_container_width=True)
+                            st.plotly_chart(category_charts[categories_list[i + 1]], width='stretch')
             
             # ABC анализ товаров
             st.subheader("🎯 ABC классификация товаров")
@@ -1853,7 +2330,7 @@ def main():
                     title="📊 Распределение товаров по ABC",
                     color_discrete_map={'A': '#2E8B57', 'B': '#FFD700', 'C': '#DC143C'}
                 )
-                st.plotly_chart(fig_abc, use_container_width=True)
+                st.plotly_chart(fig_abc, width='stretch')
             
             with col4:
                 st.write("**📊 ABC статистика:**")
@@ -1874,17 +2351,39 @@ def main():
             
             # Селектор товара
             products_list = sorted(filtered_df['product_name'].unique())
+
+            # Кнопки для быстрого выбора товаров
+            prod_col1, prod_col2 = st.columns([1, 1])
+            with prod_col1:
+                if st.button("🏆 Топ-товар", key="select_top_product", help="Выбрать самый прибыльный товар"):
+                    # Находим товар с максимальной выручкой
+                    top_product = product_data.loc[product_data['Общая выручка'].idxmax(), 'product_name']
+                    st.session_state["selected_product"] = top_product
+
+            with prod_col2:
+                if st.button("🔍 Поиск...", key="search_product", help="Открыть поиск по товарам"):
+                    search_term = st.text_input("Поиск товара:", key="product_search")
+                    if search_term:
+                        filtered_products = [p for p in products_list if search_term.lower() in p.lower()]
+                        if filtered_products:
+                            products_list = filtered_products
+
+            default_product = st.session_state.get("selected_product", products_list[0] if products_list else None)
             selected_product = st.selectbox(
                 "Выберите товар для детального анализа:",
                 products_list,
+                index=products_list.index(default_product) if default_product in products_list else 0,
                 help="Выберите товар чтобы увидеть его детальную динамику"
             )
+
+            # Обновляем session_state
+            st.session_state["selected_product"] = selected_product
             
             if selected_product:
                 fig_product_deep, product_contractors, product_regions = create_product_deep_dive(filtered_df, selected_product)
                 
                 if fig_product_deep is not None:
-                    st.plotly_chart(fig_product_deep, use_container_width=True)
+                    st.plotly_chart(fig_product_deep, width='stretch')
                     
                     # Статистика по товару
                     col_prod1, col_prod2, col_prod3 = st.columns(3)
@@ -1905,7 +2404,7 @@ def main():
                     
                     # Топ контрагенты для товара
                     st.write("**🏢 Топ-10 контрагентов для этого товара:**")
-                    st.dataframe(product_contractors.head(10), use_container_width=True)
+                    st.dataframe(product_contractors.head(10), width='stretch')
                 else:
                     st.warning("⚠️ Нет данных для выбранного товара в текущем фильтре")
             
@@ -1916,7 +2415,7 @@ def main():
                  'Количество заказов', 'Покупателей', 'Скорость продаж', 'Географическое покрытие']
             ]
             
-            st.dataframe(top_products_display, use_container_width=True)
+            st.dataframe(top_products_display, width='stretch')
         
         st.markdown('</div>', unsafe_allow_html=True)
     
@@ -1929,12 +2428,12 @@ def main():
             
             col1, col2 = st.columns(2)
             with col1:
-                st.plotly_chart(fig_contr_spec, use_container_width=True)
+                st.plotly_chart(fig_contr_spec, width='stretch')
             with col2:
-                st.plotly_chart(fig_diversity, use_container_width=True)
+                st.plotly_chart(fig_diversity, width='stretch')
             
             # Динамика пар
-            st.plotly_chart(fig_pairs_dyn, use_container_width=True)
+            st.plotly_chart(fig_pairs_dyn, width='stretch')
             
             # Детальный анализ конкретной пары
             st.subheader("🔍 Детальный анализ пары контрагент-товар")
@@ -1944,24 +2443,69 @@ def main():
             with col_select1:
                 # Селектор контрагента
                 contractors_list = sorted(filtered_df['head_contractor'].unique())
+
+                # Кнопки для быстрого выбора контрагента
+                contr_col1, contr_col2 = st.columns([1, 1])
+                with contr_col1:
+                    if st.button("🏆 Топ-контрагент", key="select_top_contractor", help="Выбрать контрагента с максимальной выручкой"):
+                        top_contractor = filtered_df.groupby('head_contractor')['amount'].sum().idxmax()
+                        st.session_state["selected_contractor_pair"] = top_contractor
+
+                with contr_col2:
+                    if st.button("🔍 Поиск...", key="search_contractor", help="Открыть поиск по контрагентам"):
+                        search_term = st.text_input("Поиск контрагента:", key="contractor_search")
+                        if search_term:
+                            filtered_contractors = [c for c in contractors_list if search_term.lower() in c.lower()]
+                            if filtered_contractors:
+                                contractors_list = filtered_contractors
+
+                default_contractor = st.session_state.get("selected_contractor_pair", contractors_list[0] if contractors_list else None)
                 selected_contractor_pair = st.selectbox(
                     "🏢 Выберите контрагента:",
                     contractors_list,
+                    index=contractors_list.index(default_contractor) if default_contractor in contractors_list else 0,
                     help="Выберите контрагента для анализа"
                 )
-            
+
+                # Обновляем session_state
+                st.session_state["selected_contractor_pair"] = selected_contractor_pair
+
             with col_select2:
                 # Селектор товара (фильтруем по выбранному контрагенту)
                 if selected_contractor_pair:
                     contractor_products = filtered_df[
                         filtered_df['head_contractor'] == selected_contractor_pair
                     ]['product_name'].unique()
-                    
+
+                    # Кнопка для выбора топ-товара контрагента
+                    prod_pair_col1, prod_pair_col2 = st.columns([1, 1])
+                    with prod_pair_col1:
+                        if st.button("🏆 Топ-товар", key="select_top_product_pair", help="Выбрать самый прибыльный товар контрагента"):
+                            if len(contractor_products) > 0:
+                                top_product = filtered_df[
+                                    (filtered_df['head_contractor'] == selected_contractor_pair) &
+                                    (filtered_df['product_name'].isin(contractor_products))
+                                ].groupby('product_name')['amount'].sum().idxmax()
+                                st.session_state["selected_product_pair"] = top_product
+
+                    with prod_pair_col2:
+                        if st.button("🔍 Поиск...", key="search_product_pair", help="Открыть поиск по товарам"):
+                            search_term = st.text_input("Поиск товара:", key="product_pair_search")
+                            if search_term:
+                                filtered_products = [p for p in contractor_products if search_term.lower() in p.lower()]
+                                if filtered_products:
+                                    contractor_products = filtered_products
+
+                    default_product_pair = st.session_state.get("selected_product_pair", sorted(contractor_products)[0] if len(contractor_products) > 0 else None)
                     selected_product_pair = st.selectbox(
                         "📦 Выберите товар:",
                         sorted(contractor_products),
+                        index=sorted(contractor_products).index(default_product_pair) if default_product_pair in contractor_products else 0,
                         help="Выберите товар этого контрагента"
                     )
+
+                    # Обновляем session_state
+                    st.session_state["selected_product_pair"] = selected_product_pair
                 else:
                     selected_product_pair = None
             
@@ -1972,7 +2516,7 @@ def main():
                 )
                 
                 if fig_pair_deep is not None:
-                    st.plotly_chart(fig_pair_deep, use_container_width=True)
+                    st.plotly_chart(fig_pair_deep, width='stretch')
                     
                     # Статистика пары
                     st.subheader(f"📊 Статистика пары: {selected_contractor_pair} × {selected_product_pair}")
@@ -2019,7 +2563,7 @@ def main():
                     'amount': '{:,.0f} ₽',
                     'quantity': '{:,.0f} шт.'
                 }),
-                use_container_width=True,
+                width='stretch',
                 column_config={
                     "head_contractor": st.column_config.TextColumn("🏢 Контрагент"),
                     "product_name": st.column_config.TextColumn("📦 Товар"),
@@ -2146,7 +2690,7 @@ def main():
             )
             
             # Отображаем результаты
-            st.plotly_chart(fig_main_comparison, use_container_width=True)
+            st.plotly_chart(fig_main_comparison, width='stretch')
             
             # Таблица с изменениями
             st.subheader("📊 Детальное сравнение метрик")
@@ -2168,15 +2712,15 @@ def main():
                     'Период 1': '{:,.0f}',
                     'Период 2': '{:,.0f}'
                 }),
-                use_container_width=True
+                width='stretch'
             )
             
             # Графики по категориям, менеджерам и контрагентам
             col_comp1, col_comp2 = st.columns(2)
             
             with col_comp1:
-                st.plotly_chart(fig_cat_comparison, use_container_width=True)
-                st.plotly_chart(fig_mgr_comparison, use_container_width=True)
+                st.plotly_chart(fig_cat_comparison, width='stretch')
+                st.plotly_chart(fig_mgr_comparison, width='stretch')
 
             with col_comp2:
                 # Сводка изменений по категориям
@@ -2190,7 +2734,7 @@ def main():
 
             # График контрагентов на всю ширину
             st.subheader("🏢 Детальное сравнение контрагентов")
-            st.plotly_chart(fig_contr_comparison, use_container_width=True)
+            st.plotly_chart(fig_contr_comparison, width='stretch')
 
             # Графики сравнения товаров по категориям
             if product_comparison_charts:
@@ -2204,14 +2748,14 @@ def main():
                             st.markdown("---")
                         col1, col2 = st.columns(2)
                         with col1:
-                            st.plotly_chart(chart, use_container_width=True, key=f"product_chart_{chart_index}")
+                            st.plotly_chart(chart, width='stretch', config={'displayModeBar': False})
                             chart_index += 1
                         if i + 1 < len(product_comparison_charts):
                             with col2:
-                                st.plotly_chart(product_comparison_charts[i + 1], use_container_width=True, key=f"product_chart_{chart_index}")
+                                st.plotly_chart(product_comparison_charts[i + 1], width='stretch', config={'displayModeBar': False})
                                 chart_index += 1
                     elif i == len(product_comparison_charts) - 1:
-                        st.plotly_chart(chart, use_container_width=True, key=f"product_chart_{chart_index}")
+                        st.plotly_chart(chart, width='stretch', config={'displayModeBar': False})
 
         else:
             st.info("📅 Выберите оба периода для проведения сравнения")
@@ -2224,7 +2768,7 @@ def main():
         
         if not filtered_df.empty:
             fig_heatmap, interaction_data = create_manager_contractor_matrix(filtered_df)
-            st.plotly_chart(fig_heatmap, use_container_width=True)
+            st.plotly_chart(fig_heatmap, width='stretch')
             
             # Топ взаимодействия
             st.subheader("⭐ Топ-15 пар менеджер-контрагент")
@@ -2237,7 +2781,7 @@ def main():
                     'amount': '{:,.0f} ₽',
                     'Эффективность': '{:,.0f} ₽'
                 }),
-                use_container_width=True,
+                width='stretch',
                 column_config={
                     "manager": st.column_config.TextColumn("👨‍💼 Менеджер"),
                     "head_contractor": st.column_config.TextColumn("🏢 Контрагент"),
@@ -2274,9 +2818,9 @@ def main():
             
             col1, col2 = st.columns(2)
             with col1:
-                st.plotly_chart(fig_quarterly, use_container_width=True)
+                st.plotly_chart(fig_quarterly, width='stretch')
             with col2:
-                st.plotly_chart(fig_seasonal, use_container_width=True)
+                st.plotly_chart(fig_seasonal, width='stretch')
             
             # Трендовый анализ
             st.subheader("📊 Трендовый анализ")
@@ -2349,7 +2893,7 @@ def main():
                     height=500
                 )
                 
-                st.plotly_chart(fig_entity_trend, use_container_width=True)
+                st.plotly_chart(fig_entity_trend, width='stretch')
                 
                 # Статистика по выбранному объекту
                 col_stat1, col_stat2, col_stat3 = st.columns(3)
@@ -2374,7 +2918,7 @@ def main():
         
         if not filtered_df.empty:
             fig_specialization, competitive_customers_count, specialization_data = create_cross_analysis(filtered_df)
-            st.plotly_chart(fig_specialization, use_container_width=True)
+            st.plotly_chart(fig_specialization, width='stretch')
             
             col1, col2 = st.columns(2)
             
@@ -2443,7 +2987,7 @@ def main():
                     'Общая сумма': '{:,.0f} ₽',
                     'Средний заказ': '{:,.0f} ₽'
                 }),
-                use_container_width=True
+                width='stretch'
             )
             
             st.info(f"📊 Показано {len(display_report)} пар из {len(summary_report)} общих")

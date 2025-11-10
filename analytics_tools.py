@@ -123,7 +123,7 @@ def create_custom_report():
             
             with col2:
                 st.subheader("📊 Результат")
-                st.dataframe(report_df, use_container_width=True)
+                st.dataframe(report_df, width='stretch')
                 
                 # Экспорт
                 csv = report_df.to_csv(encoding='utf-8')
@@ -238,7 +238,7 @@ def create_what_if_analysis():
             height=400
         )
         
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
 def create_advanced_filters():
     """Продвинутые фильтры и поиск"""
@@ -296,7 +296,7 @@ def create_advanced_filters():
             result = pd.read_sql_query(custom_query, conn)
             
             st.success(f"✅ Запрос выполнен успешно! Найдено {len(result)} записей")
-            st.dataframe(result, use_container_width=True)
+            st.dataframe(result, width='stretch')
             
             # Экспорт результата
             csv = result.to_csv(index=False, encoding='utf-8')
@@ -336,7 +336,7 @@ def create_data_quality_check():
             'Процент': missing_percent.values
         })
         
-        st.dataframe(quality_df, use_container_width=True)
+        st.dataframe(quality_df, width='stretch')
         
         # Дубликаты
         duplicates = df.duplicated().sum()
@@ -359,7 +359,7 @@ def create_data_quality_check():
             nbins=50,
             title="Распределение сумм заказов"
         )
-        st.plotly_chart(fig_hist, use_container_width=True)
+        st.plotly_chart(fig_hist, width='stretch')
         
         # Статистика по категориям
         category_stats = df.groupby('category').agg({
@@ -367,7 +367,7 @@ def create_data_quality_check():
         }).round(2)
         
         st.write("**📦 Статистика по категориям:**")
-        st.dataframe(category_stats, use_container_width=True)
+        st.dataframe(category_stats, width='stretch')
 
 def create_export_center():
     """Центр экспорта данных"""
@@ -546,7 +546,7 @@ def create_real_time_monitor():
         markers=True
     )
     fig.update_layout(height=400)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
 def main():
     # Заголовок

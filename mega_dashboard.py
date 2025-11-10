@@ -456,7 +456,7 @@ def create_interactive_simulator(df):
                     height=400
                 )
                 
-                st.plotly_chart(fig_simulation, use_container_width=True)
+                st.plotly_chart(fig_simulation, width='stretch')
 
 def create_real_time_dashboard(df):
     """Дашборд реального времени"""
@@ -637,7 +637,7 @@ def main():
         st.markdown('<div class="hologram-card">', unsafe_allow_html=True)
         if not df.empty:
             fig_3d = create_cosmic_visualizations(df)
-            st.plotly_chart(fig_3d, use_container_width=True)
+            st.plotly_chart(fig_3d, width='stretch')
             
             st.markdown("""
             <div class="ai-insight">
@@ -657,7 +657,7 @@ def main():
         st.markdown('<div class="hologram-card">', unsafe_allow_html=True)
         if not df.empty:
             fig_live = create_real_time_dashboard(df)
-            st.plotly_chart(fig_live, use_container_width=True)
+            st.plotly_chart(fig_live, width='stretch')
             
             # Живые алерты
             st.markdown("### 🚨 Живые алерты")

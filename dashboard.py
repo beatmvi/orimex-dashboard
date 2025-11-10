@@ -309,7 +309,7 @@ def main():
         st.subheader("Динамика заказов во времени")
         if not filtered_df.empty:
             fig_time = create_time_series_chart(filtered_df)
-            st.plotly_chart(fig_time, use_container_width=True)
+            st.plotly_chart(fig_time, width='stretch')
             
             # Дополнительная статистика по месяцам
             monthly_stats = filtered_df.groupby(filtered_df['order_date'].dt.to_period('M')).agg({
@@ -320,7 +320,7 @@ def main():
             monthly_stats.columns = ['Месяц', 'Сумма заказов', 'Количество заказов']
             
             st.subheader("📅 Статистика по месяцам")
-            st.dataframe(monthly_stats, use_container_width=True)
+            st.dataframe(monthly_stats, width='stretch')
     
     with tab2:
         st.subheader("Анализ по регионам")
@@ -329,30 +329,30 @@ def main():
             
             col1, col2 = st.columns(2)
             with col1:
-                st.plotly_chart(fig_pie, use_container_width=True)
+                st.plotly_chart(fig_pie, width='stretch')
             with col2:
-                st.plotly_chart(fig_bar, use_container_width=True)
+                st.plotly_chart(fig_bar, width='stretch')
             
             st.subheader("📊 Детальная статистика по регионам")
-            st.dataframe(region_stats, use_container_width=True)
+            st.dataframe(region_stats, width='stretch')
     
     with tab3:
         st.subheader("Анализ товаров")
         if not filtered_df.empty:
             fig_products, product_stats = create_product_analysis(filtered_df)
-            st.plotly_chart(fig_products, use_container_width=True)
+            st.plotly_chart(fig_products, width='stretch')
             
             st.subheader("📦 Детальная статистика по товарам")
-            st.dataframe(product_stats, use_container_width=True)
+            st.dataframe(product_stats, width='stretch')
     
     with tab4:
         st.subheader("Анализ контрагентов")
         if not filtered_df.empty:
             fig_contractors, contractor_stats = create_contractor_analysis(filtered_df)
-            st.plotly_chart(fig_contractors, use_container_width=True)
+            st.plotly_chart(fig_contractors, width='stretch')
             
             st.subheader("🏢 Детальная статистика по контрагентам")
-            st.dataframe(contractor_stats, use_container_width=True)
+            st.dataframe(contractor_stats, width='stretch')
     
     with tab5:
         st.subheader("Исходные данные")
@@ -368,7 +368,7 @@ def main():
                 mime="text/csv"
             )
         
-        st.dataframe(filtered_df, use_container_width=True)
+        st.dataframe(filtered_df, width='stretch')
     
     # Футер
     st.markdown("---")

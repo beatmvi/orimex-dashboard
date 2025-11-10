@@ -679,7 +679,7 @@ def main():
     with tab1:
         st.subheader("🤖 AI-детекция аномалий")
         fig_anomaly, anomaly_count = create_ai_anomaly_detection(df)
-        st.plotly_chart(fig_anomaly, use_container_width=True)
+        st.plotly_chart(fig_anomaly, width='stretch')
         
         if anomaly_count > 0:
             st.warning(f"⚠️ Обнаружено {anomaly_count} аномальных дней в продажах")
@@ -689,7 +689,7 @@ def main():
     with tab2:
         st.subheader("🎯 AI-сегментация клиентов")
         fig_segments, rfm_data = create_customer_segmentation(df)
-        st.plotly_chart(fig_segments, use_container_width=True)
+        st.plotly_chart(fig_segments, width='stretch')
         
         # Статистика по сегментам
         segment_stats = rfm_data['cluster_name'].value_counts()
@@ -712,9 +712,9 @@ def main():
         
         col1, col2 = st.columns(2)
         with col1:
-            st.plotly_chart(fig_ml, use_container_width=True)
+            st.plotly_chart(fig_ml, width='stretch')
         with col2:
-            st.plotly_chart(fig_importance, use_container_width=True)
+            st.plotly_chart(fig_importance, width='stretch')
         
         st.markdown(f"""
         <div class="prediction-box">
@@ -726,14 +726,14 @@ def main():
     with tab4:
         st.subheader("🕸️ Сетевой анализ связей")
         fig_network = create_network_analysis(df)
-        st.plotly_chart(fig_network, use_container_width=True)
+        st.plotly_chart(fig_network, width='stretch')
         
         st.info("💡 График показывает самые сильные связи между клиентами и товарами по объему продаж")
     
     with tab5:
         st.subheader("😊 Анализ настроения продаж")
         fig_sentiment, sentiment_stats = create_sentiment_analysis(df)
-        st.plotly_chart(fig_sentiment, use_container_width=True)
+        st.plotly_chart(fig_sentiment, width='stretch')
         
         col1, col2 = st.columns(2)
         with col1:
@@ -754,11 +754,11 @@ def main():
     with tab6:
         st.subheader("💰 Анализ прибыльности")
         fig_profit, profit_data = create_profitability_analysis(df)
-        st.plotly_chart(fig_profit, use_container_width=True)
+        st.plotly_chart(fig_profit, width='stretch')
         
         # Конкурентный анализ
         fig_competitive, competitive_data = create_competitive_analysis(df)
-        st.plotly_chart(fig_competitive, use_container_width=True)
+        st.plotly_chart(fig_competitive, width='stretch')
         
         # Топ прибыльные регионы
         top_profitable = profit_data.sort_values('profit', ascending=False).head(10)
@@ -769,7 +769,7 @@ def main():
                 'profit_margin': '{:.1f}%',
                 'profit_per_order': '{:,.0f} ₽'
             }),
-            use_container_width=True
+            width='stretch'
         )
 
 if __name__ == "__main__":
