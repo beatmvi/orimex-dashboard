@@ -1684,10 +1684,25 @@ def main():
             # Селектор для просмотра динамики других контрагентов
             st.subheader("🔍 Выберите контрагентов для анализа динамики")
             
+            # Безопасно формируем список опций и значений по умолчанию,
+            # чтобы исключить None/NaN и значения, отсутствующие в опциях
+            contractors_options = [c for c in all_contractors if isinstance(c, str) and c.strip() != ""]
+            # Подстрахуемся на случай нестроковых типов
+            if not contractors_options and all_contractors:
+                contractors_options = [str(c) for c in all_contractors if pd.notna(c)]
+            
+            if len(contractors_options) >= 5:
+                default_contractors_options = contractors_options[:5]
+            else:
+                default_contractors_options = contractors_options[:min(3, len(contractors_options))]
+            
+            # Гарантируем, что default — подмножество options
+            default_contractors_options = [c for c in default_contractors_options if c in contractors_options]
+
             selected_contractors_dynamics = st.multiselect(
                 "Выберите контрагентов для отображения динамики:",
-                all_contractors,
-                default=all_contractors[:5] if len(all_contractors) > 5 else all_contractors[:3],
+                contractors_options,
+                default=default_contractors_options,
                 help="Выберите до 10 контрагентов для сравнения динамики"
             )
             
